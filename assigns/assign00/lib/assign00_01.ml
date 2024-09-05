@@ -1,0 +1,1 @@
+let sqrt x = int_of_float (ceil (sqrt (float_of_int x)))
