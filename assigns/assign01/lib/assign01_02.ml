@@ -9,4 +9,4 @@ let nth_prime n =
     if n = c then p - 1
     else if is_prime p then find_p (c + 1) (p + 1)
     else find_p c (p + 1)
-  in find_p (0) 3
+  in find_p (-1) 2
