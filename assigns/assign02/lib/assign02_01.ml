@@ -20,12 +20,12 @@ type col_index =
 
 type pos_index = row_index * col_index
 
-let get_pos (board: board) ((row, col): pos_index) : pos =
+let get_pos board (row, col) =
   let (top, middle, bottom) = board in
   match row with
   | Top ->
     (match col with
-    | Left -> let (l, _, _) = middle in l
+    | Left -> let (l, _, _) = top in l
     | Middle -> let (_, m, _) = top in m
     | Right -> let (_, _, r) = top in r)
 | Middle -> 
@@ -39,8 +39,8 @@ let get_pos (board: board) ((row, col): pos_index) : pos =
     | Middle -> let (_, m, _) = bottom in m
     | Right -> let (_, _, r) = bottom in r)
 
-let winner (board: board) : bool =
-  let check_line (p1: pos_index) (p2: pos_index) (p3: pos_index) : bool =
+let winner board =
+  let check_line p1 p2 p3 =
     match get_pos board p1, get_pos board p2, get_pos board p3 with
     | Piece X, Piece X, Piece X -> true
     | Piece O, Piece O, Piece O -> true
