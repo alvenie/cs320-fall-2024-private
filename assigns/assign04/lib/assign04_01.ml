@@ -18,8 +18,9 @@ let last_function_standing funcs start pred =
       if max_lifespan = -1 then
         (* Handle case with infinite lifespans *)
         let infinite_funcs = List.filter (fun (_, l) -> l = -1) lifespans in
-        if List.length infinite_funcs = 1 then Some (fst (List.hd infinite_funcs))
-        else None
+        match infinite_funcs with
+        | [(f, _)] -> Some f
+        | _ -> None
       else
         let max_funcs = List.filter (fun (_, l) -> l = max_lifespan) lifespans in
         match max_funcs with
