@@ -5,15 +5,23 @@ let last_function_standing funcs start pred =
   in
   
   let calculate_lifespan f =
-    apply_until_fail f start 0
+    try 
+      apply_until_fail f start 0
+    with _ -> -1  (* Handle potential infinite loops *)
   in
   
   match funcs with
   | [] -> None
   | _ ->
       let lifespans = List.map (fun f -> (f, calculate_lifespan f)) funcs in
-      let max_lifespan = List.fold_left (fun acc (_, l) -> max acc l) 0 lifespans in
-      let max_funcs = List.filter (fun (_, l) -> l = max_lifespan) lifespans in
-      match max_funcs with
-      | [(f, _)] -> Some f
-      | _ -> None
+      let max_lifespan = List.fold_left (fun acc (_, l) -> max acc l) min_int lifespans in
+      if max_lifespan = -1 then
+        (* Handle case with infinite lifespans *)
+        let infinite_funcs = List.filter (fun (_, l) -> l = -1) lifespans in
+        if List.length infinite_funcs = 1 then Some (fst (List.hd infinite_funcs))
+        else None
+      else
+        let max_funcs = List.filter (fun (_, l) -> l = max_lifespan) lifespans in
+        match max_funcs with
+        | [(f, _)] -> Some f
+        | _ -> None
