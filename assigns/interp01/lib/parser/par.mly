@@ -56,12 +56,17 @@ expr:
   | LET; x = VAR; EQ; e1 = expr; IN; e2 = expr
     { Let (x, e1, e2) }
   | LET; REC; x = VAR; EQ; e1 = expr; IN; e2 = expr
-    { LetRec (x, e1, e2) }
+    { Let (x, 
+           App (Fun ("self", 
+                     subst (App (Var "self", Var "self")) x e1),
+                Fun ("self", 
+                     subst (App (Var "self", Var "self")) x e1)),
+           e2) }
   | FUN; x = VAR; ARROW; e = expr
     { Fun (x, e) }
   | e = expr2
     { e }
-
+    
 %inline bop:
   |ADD {Add}
   |SUB {Sub}

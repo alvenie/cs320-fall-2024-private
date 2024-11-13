@@ -12,8 +12,7 @@ type expr =
   | If of expr * expr * expr
   | Let of string * expr * expr
   | Fun of string * expr
-  | LetRec of string * expr * expr
-
+  
 type prog = expr
 
 type value =
