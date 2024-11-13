@@ -12,7 +12,10 @@ let rec subst (v: value) (x: string) (e: expr) : expr =
       else Let (y, subst v x e1, subst v x e2)
   | App (e1, e2) -> App (subst v x e1, subst v x e2)
   | Bop (op, e1, e2) -> Bop (op, subst v x e1, subst v x e2)
-
+  | LetRec (f, e1, e2) ->
+    if x = f then LetRec (f, e1, e2)
+    else LetRec (f, subst v x e1, subst v x e2)
+  
 and value_to_expr (v: value) : expr =
   match v with
   | VNum n -> Num n
@@ -30,6 +33,12 @@ and value_to_expr (v: value) : expr =
     | Unit -> Ok VUnit
     | Fun (x, e) -> Ok (VFun (x, e))
     | Var x -> Error (UnknownVar x)
+    | LetRec (f, e1, e2) ->
+      (match e1 with
+       | Fun (x, body) ->
+           let rec_fun = VFun (x, LetRec (f, e1, body)) in
+           eval (subst rec_fun f e2)
+       | _ -> Error (InvalidArgs Eq))
     | If (e1, e2, e3) ->
         (match eval e1 with
          | Ok (VBool true) -> eval e2

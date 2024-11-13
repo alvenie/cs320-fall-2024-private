@@ -33,6 +33,7 @@ let rec mk_app e es =
 %token TRUE
 %token <int> NUM
 %token <string> VAR
+%token REC
 
 %right OR
 %right AND
@@ -54,6 +55,8 @@ expr:
     { If (e1, e2, e3) }
   | LET; x = VAR; EQ; e1 = expr; IN; e2 = expr
     { Let (x, e1, e2) }
+  | LET; REC; x = VAR; EQ; e1 = expr; IN; e2 = expr
+    { LetRec (x, e1, e2) }
   | FUN; x = VAR; ARROW; e = expr
     { Fun (x, e) }
   | e = expr2
