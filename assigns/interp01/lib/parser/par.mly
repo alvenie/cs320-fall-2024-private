@@ -51,14 +51,22 @@ prog:
   | e = expr; EOF { e }
 
 expr:
-| LET; REC; x = VAR; EQ; e1 = expr; IN; e2 = expr
-  { Let (x,
-         Fun ("_rec",
-              App (Fun (x, e1),
-                   Fun ("_self",
-                        App (App (Var "_rec", Var "_rec"),
-                             Var "_self")))),
-         e2) }
+| LET; rec_opt = option(REC); x = VAR; EQ; e1 = expr; IN; e2 = expr
+  { 
+    match rec_opt with
+    | Some _ -> 
+        (* Recursive case *)
+        Let (x,
+             Fun ("_rec",
+                  App (Fun (x, e1),
+                       Fun ("_self",
+                            App (App (Var "_rec", Var "_rec"),
+                                 Var "_self")))),
+             e2)
+    | None -> 
+        (* Non-recursive case *)
+        Let (x, e1, e2)
+  }
   | IF; e1 = expr; THEN; e2 = expr; ELSE; e3 = expr
     { If (e1, e2, e3) }
   | FUN; x = VAR; ARROW; e = expr
