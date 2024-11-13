@@ -83,3 +83,7 @@ let interp (s: string) : (value, error) result =
   match parse s with
   | Some expr -> eval expr
   | None -> Error ParseFail
+
+let parse s =
+  try Some (Par.prog Lex.read (Lexing.from_string s))
+  with _ -> None
