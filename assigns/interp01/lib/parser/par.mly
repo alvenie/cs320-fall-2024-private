@@ -51,22 +51,27 @@ prog:
   | e = expr; EOF { e }
 
 expr:
-  | IF; e1 = expr; THEN; e2 = expr; ELSE; e3 = expr
-    { If (e1, e2, e3) }
-  | LET; x = VAR; EQ; e1 = expr; IN; e2 = expr
-    { Let (x, e1, e2) }
   | LET; REC; x = VAR; EQ; e1 = expr; IN; e2 = expr
     { Let (x, 
-           App (Fun ("self", 
-                     subst (App (Var "self", Var "self")) x e1),
-                Fun ("self", 
-                     subst (App (Var "self", Var "self")) x e1)),
+           Fun ("_rec_arg",
+                App (
+                  Fun (x, e1),
+                  Fun ("_rec_self", 
+                       App (
+                         App (Var "_rec_arg", Var "_rec_arg"),
+                         Var "_rec_self"
+                       )
+                  )
+                )
+           ),
            e2) }
+  | IF; e1 = expr; THEN; e2 = expr; ELSE; e3 = expr
+    { If (e1, e2, e3) }
   | FUN; x = VAR; ARROW; e = expr
     { Fun (x, e) }
   | e = expr2
     { e }
-    
+
 %inline bop:
   |ADD {Add}
   |SUB {Sub}
