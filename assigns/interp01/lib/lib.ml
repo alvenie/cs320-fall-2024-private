@@ -85,5 +85,5 @@ let interp (s: string) : (value, error) result =
   | None -> Error ParseFail
 
     
-let parse s =
-  prog option = My_parser.parse s
+let parse s : prog option = 
+  My_parser.parse s
