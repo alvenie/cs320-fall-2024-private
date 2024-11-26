@@ -1,4 +1,5 @@
 open Utils
+open My_parser
 
 exception DivByZero
 exception AssertFail
@@ -111,7 +112,7 @@ let type_of (e: expr): (ty, error) result =
         if is_rec then
           match ty with
           | FunTy _ -> type_of_expr env' value
-          | _ -> Error (LetTyErr (ty, ty))  (* Recursive binding must be a function *)
+          | _ -> Error (LetTyErr (ty, ty))
         else type_of_expr env value
       in
       (match check_value with
@@ -153,8 +154,8 @@ let eval (e: expr) : value =
          | Lte, VNum n1, VNum n2 -> VBool (n1 <= n2)
          | Gt, VNum n1, VNum n2 -> VBool (n1 > n2)
          | Gte, VNum n1, VNum n2 -> VBool (n1 >= n2)
-         | Eq, VNum n1, VNum n2 -> VBool (n1 = n2)
-         | Neq, VNum n1, VNum n2 -> VBool (n1 <> n2)
+         | Eq, n1, n2 -> VBool (n1 = n2)
+         | Neq, n1, n2 -> VBool (n1 <> n2)
          | And, VBool b1, VBool b2 -> VBool (b1 && b2)
          | Or, VBool b1, VBool b2 -> VBool (b1 || b2)
          | _ -> failwith "Type error in binary operation")
@@ -165,20 +166,26 @@ let eval (e: expr) : value =
          | _ -> failwith "Type error in if condition")
     | Fun (x, _, body) -> VClos { name = None; arg = x; body = body; env = env }
   | App (e1, e2) ->
-      (match eval_in_env env e1 with
-       | VClos { name; arg; body; env = clos_env } ->
-           let v2 = eval_in_env env e2 in
-           let new_env = Stdlib320.Env.add arg v2 
-             (match name with 
-              | Some f -> Stdlib320.Env.add f (VClos { name; arg; body; env = clos_env }) clos_env
-              | None -> clos_env) in
-           eval_in_env new_env body
-       | _ -> failwith "Type error in function application")
+    (match eval_in_env env e1 with
+     | VClos { name; arg; body; env = clos_env } ->
+         let v2 = eval_in_env env e2 in
+         let new_env = Stdlib320.Env.add arg v2 clos_env in
+         let new_env = match name with
+           | Some f -> Stdlib320.Env.add f (VClos { name; arg; body; env = clos_env }) new_env
+           | None -> new_env
+         in
+         eval_in_env new_env body
+     | _ -> failwith "Type error in function application")
     | Let { is_rec; name; ty = _; value; body } ->
-        let rec_env = if is_rec 
-                      then Stdlib320.Env.add name (VClos { name = Some name; arg = ""; body = value; env = env }) env
-                      else env in
-        let v = eval_in_env rec_env value in
+      if is_rec then
+        (match eval_in_env env value with
+         | VClos clos ->
+             let rec_clos = VClos { clos with name = Some name } in
+             let new_env = Stdlib320.Env.add name rec_clos env in
+             eval_in_env new_env body
+         | _ -> failwith "Recursive binding must be a function")
+      else
+        let v = eval_in_env env value in
         eval_in_env (Stdlib320.Env.add name v env) body
     | Assert e ->
         (match eval_in_env env e with
@@ -187,9 +194,6 @@ let eval (e: expr) : value =
          | _ -> failwith "Type error in assert")
   in
   eval_in_env Stdlib320.Env.empty e
-
-let parse s : prog option = 
-  My_parser.parse s
 
 let interp (s: string) : (value, error) result =
   match parse s with
@@ -204,3 +208,6 @@ let interp (s: string) : (value, error) result =
           with
           | AssertFail -> Error (AssertTyErr BoolTy)
           | DivByZero -> Error (OpTyErrR (Div, IntTy, IntTy))
+
+let parse s : prog option = 
+  My_parser.parse s
