@@ -188,8 +188,11 @@ let eval (e: expr) : value =
   in
   eval_in_env Stdlib320.Env.empty e
 
+let parse s : prog option = 
+  My_parser.parse s
+
 let interp (s: string) : (value, error) result =
-  match My_parser.parse s with
+  match parse s with
   | None -> Error ParseErr
   | Some prog ->
       let desugared = desugar prog in
@@ -201,4 +204,3 @@ let interp (s: string) : (value, error) result =
           with
           | AssertFail -> Error (AssertTyErr BoolTy)
           | DivByZero -> Error (OpTyErrR (Div, IntTy, IntTy))
-          
