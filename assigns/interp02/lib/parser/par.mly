@@ -104,7 +104,7 @@ expr3:
   | x = VAR { SVar x }
   | LPAREN e = expr RPAREN { e }
 
-bop:
+%inline bop:
   | ADD { Add }
   | SUB { Sub }
   | MUL { Mul }
