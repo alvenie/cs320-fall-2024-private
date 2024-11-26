@@ -54,76 +54,79 @@ let desugar (p: prog): expr =
   in
   desugar_toplets p
 
-let rec type_of (env: (string * ty) list) (e: expr): (ty, error) result =
-  match e with
-  | Unit -> Ok UnitTy
-  | True | False -> Ok BoolTy
-  | Num _ -> Ok IntTy
-  | Var x -> 
-      (match List.assoc_opt x env with
-       | Some t -> Ok t
-       | None -> Error (UnknownVar x))
-  | If (e1, e2, e3) ->
-      (match type_of env e1 with
-       | Ok BoolTy ->
-           (match type_of env e2, type_of env e3 with
-            | Ok t2, Ok t3 when t2 = t3 -> Ok t2
-            | Ok t2, Ok t3 -> Error (IfTyErr (t2, t3))
-            | Error e, _ | _, Error e -> Error e)
-       | Ok t -> Error (IfCondTyErr t)
-       | Error e -> Error e)
-  | Bop (op, e1, e2) ->
-      let check_int_op () =
-        match type_of env e1, type_of env e2 with
-        | Ok IntTy, Ok IntTy -> Ok IntTy
-        | Ok IntTy, Ok t -> Error (OpTyErrR (op, IntTy, t))
-        | Ok t, _ -> Error (OpTyErrL (op, IntTy, t))
-        | Error e, _ -> Error e
-      in
-      let check_bool_op () =
-        match type_of env e1, type_of env e2 with
-        | Ok BoolTy, Ok BoolTy -> Ok BoolTy
-        | Ok BoolTy, Ok t -> Error (OpTyErrR (op, BoolTy, t))
-        | Ok t, _ -> Error (OpTyErrL (op, BoolTy, t))
-        | Error e, _ -> Error e
-      in
-      let check_comp_op () =
-        match type_of env e1, type_of env e2 with
-        | Ok IntTy, Ok IntTy -> Ok BoolTy
-        | Ok IntTy, Ok t -> Error (OpTyErrR (op, IntTy, t))
-        | Ok t, _ -> Error (OpTyErrL (op, IntTy, t))
-        | Error e, _ -> Error e
-      in
-      (match op with
-       | Add | Sub | Mul | Div | Mod -> check_int_op ()
-       | Lt | Lte | Gt | Gte | Eq | Neq -> check_comp_op ()
-       | And | Or -> check_bool_op ())
-  | Fun (x, t1, e) ->
-      (match type_of ((x, t1) :: env) e with
-       | Ok t2 -> Ok (FunTy (t1, t2))
-       | Error e -> Error e)
-  | App (e1, e2) ->
-      (match type_of env e1 with
-       | Ok (FunTy (t1, t2)) ->
-           (match type_of env e2 with
-            | Ok t when t = t1 -> Ok t2
-            | Ok t -> Error (FunArgTyErr (t1, t))
-            | Error e -> Error e)
-       | Ok t -> Error (FunAppTyErr t)
-       | Error e -> Error e)
-  | Let { is_rec; name; ty; value; body } ->
-      let env' = (name, ty) :: env in
-      let check_value = if is_rec then type_of env' value else type_of env value in
-      (match check_value with
-       | Ok t when t = ty ->
-           type_of env' body
-       | Ok t -> Error (LetTyErr (ty, t))
-       | Error e -> Error e)
-  | Assert e ->
-      (match type_of env e with
-       | Ok BoolTy -> Ok UnitTy
-       | Ok t -> Error (AssertTyErr t)
-       | Error e -> Error e)
+let type_of (e: expr): (ty, error) result =
+  let rec type_of_expr (env: (string * ty) list) (e: expr): (ty, error) result =
+    match e with
+    | Unit -> Ok UnitTy
+    | True | False -> Ok BoolTy
+    | Num _ -> Ok IntTy
+    | Var x ->
+        (match List.assoc_opt x env with
+         | Some t -> Ok t
+         | None -> Error (UnknownVar x))
+    | If (e1, e2, e3) ->
+        (match type_of_expr env e1 with
+         | Ok BoolTy ->
+             (match type_of_expr env e2, type_of_expr env e3 with
+              | Ok t2, Ok t3 when t2 = t3 -> Ok t2
+              | Ok t2, Ok t3 -> Error (IfTyErr (t2, t3))
+              | Error e, _ | _, Error e -> Error e)
+         | Ok t -> Error (IfCondTyErr t)
+         | Error e -> Error e)
+    | Bop (op, e1, e2) ->
+        let check_int_op () =
+          match type_of_expr env e1, type_of_expr env e2 with
+          | Ok IntTy, Ok IntTy -> Ok IntTy
+          | Ok IntTy, Ok t -> Error (OpTyErrR (op, IntTy, t))
+          | Ok t, _ -> Error (OpTyErrL (op, IntTy, t))
+          | Error e, _ -> Error e
+        in
+        let check_bool_op () =
+          match type_of_expr env e1, type_of_expr env e2 with
+          | Ok BoolTy, Ok BoolTy -> Ok BoolTy
+          | Ok BoolTy, Ok t -> Error (OpTyErrR (op, BoolTy, t))
+          | Ok t, _ -> Error (OpTyErrL (op, BoolTy, t))
+          | Error e, _ -> Error e
+        in
+        let check_comp_op () =
+          match type_of_expr env e1, type_of_expr env e2 with
+          | Ok IntTy, Ok IntTy -> Ok BoolTy
+          | Ok IntTy, Ok t -> Error (OpTyErrR (op, IntTy, t))
+          | Ok t, _ -> Error (OpTyErrL (op, IntTy, t))
+          | Error e, _ -> Error e
+        in
+        (match op with
+         | Add | Sub | Mul | Div | Mod -> check_int_op ()
+         | Lt | Lte | Gt | Gte | Eq | Neq -> check_comp_op ()
+         | And | Or -> check_bool_op ())
+    | Fun (x, t1, e) ->
+        (match type_of_expr ((x, t1) :: env) e with
+         | Ok t2 -> Ok (FunTy (t1, t2))
+         | Error e -> Error e)
+    | App (e1, e2) ->
+        (match type_of_expr env e1 with
+         | Ok (FunTy (t1, t2)) ->
+             (match type_of_expr env e2 with
+              | Ok t when t = t1 -> Ok t2
+              | Ok t -> Error (FunArgTyErr (t1, t))
+              | Error e -> Error e)
+         | Ok t -> Error (FunAppTyErr t)
+         | Error e -> Error e)
+    | Let { is_rec; name; ty; value; body } ->
+        let env' = (name, ty) :: env in
+        let check_value = if is_rec then type_of_expr env' value else type_of_expr env value in
+        (match check_value with
+         | Ok t when t = ty ->
+             type_of_expr env' body
+         | Ok t -> Error (LetTyErr (ty, t))
+         | Error e -> Error e)
+    | Assert e ->
+        (match type_of_expr env e with
+         | Ok BoolTy -> Ok UnitTy
+         | Ok t -> Error (AssertTyErr t)
+         | Error e -> Error e)
+  in
+  type_of_expr [] e
 
 let eval (e: expr) : value =
   let rec eval_in_env (env: value Stdlib320.env) (e: expr) : value =
