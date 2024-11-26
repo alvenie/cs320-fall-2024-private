@@ -54,68 +54,64 @@ let desugar (p: prog): expr =
   in
   desugar_toplets p
 
-let rec type_of (e: expr) : (ty, error) result =
-  let type_of_binary_op op e1 e2 expected_type result_type =
-    match type_of e1, type_of e2 with
-    | Ok t1, Ok t2 when t1 = expected_type && t2 = expected_type -> Ok result_type
-    | Ok t1, Ok _ when t1 <> expected_type -> Error (OpTyErrL (op, expected_type, t1))
-    | Ok _, Ok t2 when t2 <> expected_type -> Error (OpTyErrR (op, expected_type, t2))
-    | Error err, _ -> Error err
-    | _, Error err -> Error err
-    | _ -> Error (OpTyErrL (op, expected_type, BoolTy))
-  in
-  match e with
-  | Unit -> Ok UnitTy
-  | True | False -> Ok BoolTy
-  | Num _ -> Ok IntTy
-  | Var x -> Error (UnknownVar x)
-  | Bop (op, e1, e2) ->
-    (match op with
-    | Add | Sub | Mul | Div | Mod -> type_of_binary_op op e1 e2 IntTy IntTy
-    | Lt | Lte | Gt | Gte | Eq | Neq -> type_of_binary_op op e1 e2 IntTy BoolTy
-    | And | Or -> type_of_binary_op op e1 e2 BoolTy BoolTy)
-  | If (e1, e2, e3) ->
-    (match type_of e1 with
-    | Ok BoolTy ->
-      (match type_of e2, type_of e3 with
-        | Ok t2, Ok t3 when t2 = t3 -> Ok t2
-        | Ok t2, Ok t3 -> Error (IfTyErr (t2, t3))
-        | Error err, _ | _, Error err -> Error err)
-    | Ok t -> Error (IfCondTyErr t)
-    | Error err -> Error err)
-  | Fun (_, t1, e) ->
-    (match type_of e with
-    | Ok t2 -> Ok (FunTy (t1, t2))
-    | Error err -> Error err)
-  | App (e1, e2) ->
-    (match type_of e1 with
-    | Ok (FunTy (t1, t2)) ->
-      (match type_of e2 with
-        | Ok t when t = t1 -> Ok t2
-        | Ok t -> Error (FunArgTyErr (t1, t))
-        | Error err -> Error err)
-    | Ok t -> Error (FunAppTyErr t)
-    | Error err -> Error err)
-  | Let { is_rec; name = _; ty; value; body } ->
-    if is_rec then
-      (match type_of value with
-      | Ok t when t = ty -> 
-          let body_type = type_of body in
-          (match body_type with
-          | Ok _ -> body_type
+  let rec type_of (e: expr) : (ty, error) result =
+    let type_of_binary_op op e1 e2 expected_type result_type =
+      match type_of e1, type_of e2 with
+      | Ok t1, Ok t2 when t1 = expected_type && t2 = expected_type -> Ok result_type
+      | Ok t1, Ok _ when t1 <> expected_type -> Error (OpTyErrL (op, expected_type, t1))
+      | Ok _, Ok t2 when t2 <> expected_type -> Error (OpTyErrR (op, expected_type, t2))
+      | Error err, _ -> Error err
+      | _, Error err -> Error err
+      | _ -> Error (OpTyErrL (op, expected_type, BoolTy))
+    in
+    match e with
+    | Unit -> Ok UnitTy
+    | True | False -> Ok BoolTy
+    | Num _ -> Ok IntTy
+    | Var x -> Error (UnknownVar x)
+    | Bop (op, e1, e2) ->
+      (match op with
+      | Add | Sub | Mul | Div | Mod -> type_of_binary_op op e1 e2 IntTy IntTy
+      | Lt | Lte | Gt | Gte | Eq | Neq -> type_of_binary_op op e1 e2 IntTy BoolTy
+      | And | Or -> type_of_binary_op op e1 e2 BoolTy BoolTy)
+    | If (e1, e2, e3) ->
+      (match type_of e1 with
+      | Ok BoolTy ->
+        (match type_of e2, type_of e3 with
+          | Ok t2, Ok t3 when t2 = t3 -> Ok t2
+          | Ok t2, Ok t3 -> Error (IfTyErr (t2, t3))
+          | Error err, _ | _, Error err -> Error err)
+      | Ok t -> Error (IfCondTyErr t)
+      | Error err -> Error err)
+    | Fun (_, t1, e) ->
+      (match type_of e with
+      | Ok t2 -> Ok (FunTy (t1, t2))
+      | Error err -> Error err)
+    | App (e1, e2) ->
+      (match type_of e1 with
+      | Ok (FunTy (t1, t2)) ->
+        (match type_of e2 with
+          | Ok t when t = t1 -> Ok t2
+          | Ok t -> Error (FunArgTyErr (t1, t))
           | Error err -> Error err)
+      | Ok t -> Error (FunAppTyErr t)
+      | Error err -> Error err)
+    | Let { is_rec; name = _; ty; value; body } ->
+      let value_type = type_of value in
+      (match value_type with
+      | Ok t when t = ty ->
+        if is_rec then
+          (match t with
+          | FunTy _ -> type_of body
+          | _ -> Error (LetTyErr (ty, t)))
+        else type_of body
       | Ok t -> Error (LetTyErr (ty, t))
       | Error err -> Error err)
-    else
-      (match type_of value with
-      | Ok t when t = ty -> type_of body
-      | Ok t -> Error (LetTyErr (ty, t))
+    | Assert e ->
+      (match type_of e with
+      | Ok BoolTy -> Ok UnitTy
+      | Ok t -> Error (AssertTyErr t)
       | Error err -> Error err)
-  | Assert e ->
-    (match type_of e with
-    | Ok BoolTy -> Ok UnitTy
-    | Ok t -> Error (AssertTyErr t)
-    | Error err -> Error err)
 
 let eval (e: expr) : value =
   let rec eval_in_env (env: value Stdlib320.env) (e: expr) : value =
