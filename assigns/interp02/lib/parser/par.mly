@@ -48,7 +48,6 @@ let rec make_fun_ty args ret_ty =
 %token OR
 %token EOF
 
-%nonassoc IN ELSE
 %right ARROW
 %right OR
 %right AND
