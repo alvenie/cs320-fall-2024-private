@@ -83,7 +83,7 @@ let rec type_of (e: expr) : (ty, error) result =
         | Error err, _ | _, Error err -> Error err)
     | Ok t -> Error (IfCondTyErr t)
     | Error err -> Error err)
-  | Fun (_, t1, e) ->
+  | Fun (x, t1, e) ->
     (match type_of e with
     | Ok t2 -> Ok (FunTy (t1, t2))
     | Error err -> Error err)
@@ -96,10 +96,14 @@ let rec type_of (e: expr) : (ty, error) result =
         | Error err -> Error err)
     | Ok t -> Error (FunAppTyErr t)
     | Error err -> Error err)
-| Let { is_rec; name = _; ty; value; body } ->
+  | Let { is_rec; name; ty; value; body } ->
     if is_rec then
       (match type_of value with
-      | Ok t when t = ty -> type_of body
+      | Ok t when t = ty -> 
+          let body_type = type_of body in
+          (match body_type with
+          | Ok _ -> body_type
+          | Error err -> Error err)
       | Ok t -> Error (LetTyErr (ty, t))
       | Error err -> Error err)
     else
