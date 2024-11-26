@@ -96,17 +96,17 @@ let rec type_of (e: expr) : (ty, error) result =
         | Error err -> Error err)
     | Ok t -> Error (FunAppTyErr t)
     | Error err -> Error err)
-    | Let { is_rec; name = _; ty; value; body } ->
-      if is_rec then
-        (match type_of value with
-        | Ok t when t = ty -> type_of body
-        | Ok t -> Error (LetTyErr (ty, t))
-        | Error err -> Error err)
-      else
-        (match type_of value with
-        | Ok t when t = ty -> type_of body
-        | Ok t -> Error (LetTyErr (ty, t))
-        | Error err -> Error err)
+| Let { is_rec; name = _; ty; value; body } ->
+    if is_rec then
+      (match type_of value with
+      | Ok t when t = ty -> type_of body
+      | Ok t -> Error (LetTyErr (ty, t))
+      | Error err -> Error err)
+    else
+      (match type_of value with
+      | Ok t when t = ty -> type_of body
+      | Ok t -> Error (LetTyErr (ty, t))
+      | Error err -> Error err)
   | Assert e ->
     (match type_of e with
     | Ok BoolTy -> Ok UnitTy
@@ -187,4 +187,6 @@ let interp (s: string) : (value, error) result =
           with
           | AssertFail -> Error (AssertTyErr BoolTy)
           | DivByZero -> Error (OpTyErrR (Div, IntTy, IntTy))
-
+          
+let parse s : prog option = 
+  My_parser.parse s
