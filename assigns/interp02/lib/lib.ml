@@ -83,7 +83,7 @@ let rec type_of (e: expr) : (ty, error) result =
         | Error err, _ | _, Error err -> Error err)
     | Ok t -> Error (IfCondTyErr t)
     | Error err -> Error err)
-  | Fun (_, t1, e) ->
+  | Fun (x, t1, e) ->
     (match type_of e with
     | Ok t2 -> Ok (FunTy (t1, t2))
     | Error err -> Error err)
@@ -96,7 +96,7 @@ let rec type_of (e: expr) : (ty, error) result =
         | Error err -> Error err)
     | Ok t -> Error (FunAppTyErr t)
     | Error err -> Error err)
-  | Let { is_rec; name = _; ty; value; body } ->
+  | Let { is_rec; name; ty; value; body } ->
     let value_type = type_of value in
     (match value_type with
     | Ok t when t = ty ->
@@ -112,6 +112,7 @@ let rec type_of (e: expr) : (ty, error) result =
     | Ok BoolTy -> Ok UnitTy
     | Ok t -> Error (AssertTyErr t)
     | Error err -> Error err)
+
 
 let eval (e: expr) : value =
   let rec eval_in_env (env: value Stdlib320.env) (e: expr) : value =
