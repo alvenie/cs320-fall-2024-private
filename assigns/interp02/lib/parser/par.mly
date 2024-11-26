@@ -93,7 +93,8 @@ expr:
 expr2:
   | e1 = expr2 op = bop e2 = expr2 { SBop (op, e1, e2) }
   | ASSERT e = expr3 { SAssert e }
-  | e = expr3 es = list(expr3) { List.fold_left (fun acc arg -> SApp (acc, arg)) e es }
+  | e = expr2 arg = expr3 { SApp (e, arg) }
+  | e = expr3 { e }
 
 expr3:
   | UNIT { SUnit }
