@@ -140,8 +140,20 @@ let eval (e: expr) : value =
        | Some v -> v
        | None -> failwith ("Unbound variable: " ^ x))
     | Bop (op, e1, e2) ->
-        let v1 = eval_in_env env e1 in
-        let v2 = eval_in_env env e2 in
+      (match op with
+      | And ->
+          (match eval_in_env env e1 with
+           | VBool false -> VBool false
+           | VBool true -> eval_in_env env e2
+           | _ -> failwith "Type error in AND operation")
+      | Or ->
+          (match eval_in_env env e1 with
+           | VBool true -> VBool true
+           | VBool false -> eval_in_env env e2
+           | _ -> failwith "Type error in OR operation")
+      | _ ->
+          let v1 = eval_in_env env e1 in
+          let v2 = eval_in_env env e2 in
         (match op, v1, v2 with
          | Add, VNum n1, VNum n2 -> VNum (n1 + n2)
          | Sub, VNum n1, VNum n2 -> VNum (n1 - n2)
@@ -156,9 +168,7 @@ let eval (e: expr) : value =
          | Gte, VNum n1, VNum n2 -> VBool (n1 >= n2)
          | Eq, n1, n2 -> VBool (n1 = n2)
          | Neq, n1, n2 -> VBool (n1 <> n2)
-         | And, VBool b1, VBool b2 -> VBool (b1 && b2)
-         | Or, VBool b1, VBool b2 -> VBool (b1 || b2)
-         | _ -> failwith "Type error in binary operation")
+         | _ -> failwith "Type error in binary operation"))
     | If (e1, e2, e3) ->
         (match eval_in_env env e1 with
          | VBool true -> eval_in_env env e2
@@ -203,8 +213,7 @@ let interp (s: string) : (value, error) result =
       match type_of desugared with
       | Error err -> Error err
       | Ok _ ->
-          try
-            Ok (eval desugared)
+          try Ok (eval desugared)
           with
           | AssertFail -> Error (AssertTyErr BoolTy)
           | DivByZero -> Error (OpTyErrR (Div, IntTy, IntTy))
