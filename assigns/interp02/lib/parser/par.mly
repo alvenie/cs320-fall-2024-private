@@ -99,7 +99,7 @@ expr2:
     { SBop (op, e1, e2) }
   | ASSERT; e = expr3 
     { SAssert e }
-  | e = expr2; arg = expr3 
+  | e = expr2; arg = expr3
     { SApp (e, arg) }
   | e = expr3 
     { e }
