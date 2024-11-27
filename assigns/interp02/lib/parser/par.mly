@@ -46,7 +46,6 @@ let rec make_fun_ty args ret_ty =
 %token AND 
 %token OR
 %token EOF
-%token EQUALS
 
 %right ARROW
 %right OR
@@ -54,6 +53,7 @@ let rec make_fun_ty args ret_ty =
 %left LT LTE GT GTE EQ NEQ
 %left ADD SUB
 %left MUL DIV MOD
+%nonassoc APP
 
 %start <Utils.prog> prog
 
@@ -63,9 +63,9 @@ prog:
   | ts = list(toplet) EOF { ts }
 
 toplet:
-  | LET x = VAR args = list(arg) COLON t = ty EQUALS e = expr
+  | LET x = VAR args = list(arg) COLON t = ty EQ e = expr
     { { is_rec = false; name = x; args = args; ty = make_fun_ty args t; value = make_fun args e } }
-  | LET REC x = VAR arg = arg args = list(arg) COLON t = ty EQUALS e = expr
+  | LET REC x = VAR arg = arg args = list(arg) COLON t = ty EQ e = expr
     { { is_rec = true; name = x; args = arg :: args; ty = make_fun_ty (arg :: args) t; value = make_fun (arg :: args) e } }
 
 arg:
@@ -85,9 +85,9 @@ ty:
     { t }
 
 expr:
-  | LET; x = VAR; args = list(arg); COLON; t = ty; EQUALS; e1 = expr; IN; e2 = expr
+  | LET; x = VAR; args = list(arg); COLON; t = ty; EQ; e1 = expr; IN; e2 = expr
     { SLet { is_rec = false; name = x; args = args; ty = make_fun_ty args t; value = make_fun args e1; body = e2 } }
-  | LET; REC; x = VAR; arg = arg; args = list(arg); COLON; t = ty; EQUALS; e1 = expr; IN; e2 = expr
+  | LET; REC; x = VAR; arg = arg; args = list(arg); COLON; t = ty; EQ; e1 = expr; IN; e2 = expr
     { SLet { is_rec = true; name = x; args = arg :: args; ty = make_fun_ty (arg :: args) t; value = make_fun (arg :: args) e1; body = e2 } }
   | IF; e1 = expr; THEN; e2 = expr; ELSE; e3 = expr
     { SIf (e1, e2, e3) }
@@ -96,14 +96,10 @@ expr:
   | e = expr2 { e }
 
 expr2:
-  | e1 = expr2; op = bop; e2 = expr2 
-    { SBop (op, e1, e2) }
-  | ASSERT; e = expr3 
-    { SAssert e }
-  | e = expr2; arg = expr3
-    { SApp (e, arg) }
-  | e = expr3 
-    { e }
+  | e = expr2; arg = expr3 %prec APP { SApp (e, arg) }
+  | e1 = expr2; op = bop; e2 = expr2 { SBop (op, e1, e2) }
+  | ASSERT; e = expr3 { SAssert e }
+  | e = expr3 { e }
 
 expr3:
   | UNIT 
