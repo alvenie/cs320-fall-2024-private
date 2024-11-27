@@ -40,7 +40,7 @@ rule read =
   | "<>"     { NEQ }
   | "&&"     { AND }
   | "||"     { OR }
+  | num      { NUM (int_of_string (Lexing.lexeme lexbuf)) }
   | var      { VAR (Lexing.lexeme lexbuf) }
   | whitespace { read lexbuf }
-  | num      { NUM (int_of_string (Lexing.lexeme lexbuf)) }
   | eof      { EOF }
