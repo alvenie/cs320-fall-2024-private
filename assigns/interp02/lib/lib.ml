@@ -206,7 +206,7 @@ let eval (e: expr) : value =
 
 let parse s : prog option = 
   My_parser.parse s
-  
+
 let interp (s: string) : (value, error) result =
   match parse s with
   | None -> Error ParseErr

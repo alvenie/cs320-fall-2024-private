@@ -54,7 +54,6 @@ let rec make_fun_ty args ret_ty =
 %left LT LTE GT GTE EQ NEQ
 %left ADD SUB
 %left MUL DIV MOD
-%left function_application
 
 %start <Utils.prog> prog
 
@@ -73,11 +72,16 @@ arg:
   | LPAREN x = VAR COLON t = ty RPAREN { (x, t) }
 
 ty:
-  | INT { IntTy }
-  | BOOL { BoolTy }
-  | UNIT_TY { UnitTy }
-  | t1 = ty ARROW t2 = ty { FunTy (t1, t2) }
-  | LPAREN t = ty RPAREN { t }
+  | INT 
+    { IntTy }
+  | BOOL 
+    { BoolTy }
+  | UNIT_TY 
+    { UnitTy }
+  | t1 = ty ARROW t2 = ty 
+    { FunTy (t1, t2) }
+  | LPAREN t = ty RPAREN 
+    { t }
 
 expr:
   | LET x = VAR args = list(arg) COLON t = ty EQUALS e1 = expr IN e2 = expr
@@ -91,18 +95,28 @@ expr:
   | e = expr2 { e }
 
 expr2:
-  | e1 = expr2 op = bop e2 = expr2 { SBop (op, e1, e2) }
-  | ASSERT e = expr3 { SAssert e }
-  | e = expr2 arg = expr3 { SApp (e, arg) }
-  | e = expr3 { e }
+  | e1 = expr2 op = bop e2 = expr2 
+    { SBop (op, e1, e2) }
+  | ASSERT e = expr3 
+    { SAssert e }
+  | e = expr2 arg = expr3 
+    { SApp (e, arg) }
+  | e = expr3 
+    { e }
 
 expr3:
-  | UNIT { SUnit }
-  | TRUE { STrue }
-  | FALSE { SFalse }
-  | n = NUM { SNum n }
-  | x = VAR { SVar x }
-  | LPAREN e = expr RPAREN { e }
+  | UNIT 
+    { SUnit }
+  | TRUE 
+    { STrue }
+  | FALSE 
+    { SFalse }
+  | n = NUM 
+    { SNum n }
+  | x = VAR 
+    { SVar x }
+  | LPAREN; e = expr; RPAREN
+    { e }
 
 %inline bop:
   | ADD { Add }
