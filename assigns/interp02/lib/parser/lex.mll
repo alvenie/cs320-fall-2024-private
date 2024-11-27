@@ -25,7 +25,6 @@ rule read =
   | "("      { LPAREN }
   | ")"      { RPAREN }
   | ":"      { COLON }
-  | "="      { EQUALS }
   | "->"     { ARROW }
   | "+"      { ADD }
   | "-"      { SUB }
