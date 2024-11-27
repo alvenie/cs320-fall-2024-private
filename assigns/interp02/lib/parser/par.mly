@@ -46,6 +46,7 @@ let rec make_fun_ty args ret_ty =
 %token AND 
 %token OR
 %token EOF
+%token EQUALS
 
 %right ARROW
 %right OR
@@ -62,9 +63,9 @@ prog:
   | ts = list(toplet) EOF { ts }
 
 toplet:
-  | LET x = VAR args = list(arg) COLON t = ty EQ e = expr
+  | LET x = VAR args = list(arg) COLON t = ty EQUALS e = expr
     { { is_rec = false; name = x; args = args; ty = make_fun_ty args t; value = make_fun args e } }
-  | LET REC x = VAR arg = arg args = list(arg) COLON t = ty EQ e = expr
+  | LET REC x = VAR arg = arg args = list(arg) COLON t = ty EQUALS e = expr
     { { is_rec = true; name = x; args = arg :: args; ty = make_fun_ty (arg :: args) t; value = make_fun (arg :: args) e } }
 
 arg:
@@ -84,9 +85,9 @@ ty:
     { t }
 
 expr:
-  | LET; x = VAR; args = list(arg); COLON; t = ty; EQ; e1 = expr; IN; e2 = expr
+  | LET; x = VAR; args = list(arg); COLON; t = ty; EQUALS; e1 = expr; IN; e2 = expr
     { SLet { is_rec = false; name = x; args = args; ty = make_fun_ty args t; value = make_fun args e1; body = e2 } }
-  | LET; REC; x = VAR; arg = arg; args = list(arg); COLON; t = ty; EQ; e1 = expr; IN; e2 = expr
+  | LET; REC; x = VAR; arg = arg; args = list(arg); COLON; t = ty; EQUALS; e1 = expr; IN; e2 = expr
     { SLet { is_rec = true; name = x; args = arg :: args; ty = make_fun_ty (arg :: args) t; value = make_fun (arg :: args) e1; body = e2 } }
   | IF; e1 = expr; THEN; e2 = expr; ELSE; e3 = expr
     { SIf (e1, e2, e3) }

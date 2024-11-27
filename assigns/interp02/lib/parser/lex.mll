@@ -11,6 +11,7 @@ rule read =
   | "let"    { LET }
   | "rec"    { REC }
   | "in"     { IN }
+  | "="      { EQUALS }
   | "if"     { IF }
   | "then"   { THEN }
   | "else"   { ELSE }
@@ -32,8 +33,8 @@ rule read =
   | "/"      { DIV }
   | "mod"    { MOD }
   | "<="     { LTE }
-  | "<"      { LT }
   | ">="     { GTE }
+  | "<"      { LT }
   | ">"      { GT }
   | "="      { EQ }
   | "<>"     { NEQ }
