@@ -31,10 +31,10 @@ rule read =
   | "*"      { MUL }
   | "/"      { DIV }
   | "mod"    { MOD }
-  | "<"      { LT }
   | "<="     { LTE }
-  | ">"      { GT }
+  | "<"      { LT }
   | ">="     { GTE }
+  | ">"      { GT }
   | "="      { EQ }
   | "<>"     { NEQ }
   | "&&"     { AND }
