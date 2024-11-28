@@ -10,7 +10,6 @@ rule read =
   parse
   | "let"    { LET }
   | "rec"    { REC }
-  | "="      { EQUALS}
   | "in"     { IN }
   | "if"     { IF }
   | "then"   { THEN }
@@ -37,7 +36,7 @@ rule read =
   | ">="     { GTE }
   | "<"      { LT }
   | ">"      { GT }
-  | "=="      { EQ }
+  | "="      { EQ }
   | "&&"     { AND }
   | "||"     { OR }
   | num      { NUM (int_of_string (Lexing.lexeme lexbuf)) }
