@@ -155,9 +155,14 @@ let type_of (env: stc_env) (e: expr): ty_scheme option =
               | None -> None)
          | None -> None)
     | Assert e' ->
-        (match go env e' with
-         | Some (t, c) -> Some (TUnit, (t, TBool) :: c)
-         | None -> None)
+      (match e' with
+      | False -> 
+          let alpha = fresh_var() in
+          Some (alpha, [])
+      | _ ->
+          (match go env e' with
+           | Some (t, c) -> Some (TUnit, (t, TBool) :: c)
+           | None -> None))
     | ListMatch { matched; hd_name; tl_name; cons_case; nil_case } ->
         (match go env matched with
          | Some (t, c) ->
