@@ -25,6 +25,10 @@ let rec free_type_vars (t: ty): ident list =
       let fv2 = free_type_vars t2 in
       unique (List.sort compare (fv1 @ fv2))
 
+let apply_subst_constrs subst constrs =
+  List.map (fun (t1, t2) -> (apply_subst_ty subst t1, apply_subst_ty subst t2)) constrs
+
+
 let unify (ty: ty) (constrs: constr list): ty_scheme option =
   let rec unify_one (t1: ty) (t2: ty): (ident * ty) list option =
     match t1, t2 with
@@ -32,8 +36,7 @@ let unify (ty: ty) (constrs: constr list): ty_scheme option =
     | TVar x, TVar y when x = y -> Some []
     | TVar x, t when not (occurs x t) -> Some [(x, t)]
     | t, TVar x when not (occurs x t) -> Some [(x, t)]
-    | TList t1, TList t2
-    | TOption t1, TOption t2 -> unify_one t1 t2
+    | TList t1, TList t2 | TOption t1, TOption t2 -> unify_one t1 t2
     | TPair (t1a, t1b), TPair (t2a, t2b)
     | TFun (t1a, t1b), TFun (t2a, t2b) ->
         (match unify_one t1a t2a, unify_one t1b t2b with
@@ -48,8 +51,9 @@ let unify (ty: ty) (constrs: constr list): ty_scheme option =
     | TPair (t1, t2) | TFun (t1, t2) -> occurs x t1 || occurs x t2
     | _ -> false
 
-  and apply_subst_constrs subst constrs =
-    List.map (fun (t1, t2) -> (apply_subst_ty subst t1, apply_subst_ty subst t2)) constrs
+  and compose_subst s1 s2 =
+    let apply_s1 = List.map (fun (x, t) -> (x, apply_subst_ty s1 t)) s2 in
+    s1 @ apply_s1
 
   and unify_all constrs =
     match constrs with
@@ -59,17 +63,18 @@ let unify (ty: ty) (constrs: constr list): ty_scheme option =
         | Some new_subst ->
             let updated_rest = apply_subst_constrs new_subst rest in
             (match unify_all updated_rest with
-             | Some rest_subst -> Some (new_subst @ rest_subst)
+             | Some rest_subst -> Some (compose_subst new_subst rest_subst)
              | None -> None)
         | None -> None
 
   in
   match unify_all constrs with
-  | Some subst ->
+  | Some subst -> 
       let final_ty = apply_subst_ty subst ty in
       let free_vars = free_type_vars final_ty in
       Some (Forall (free_vars, final_ty))
   | None -> None
+
 
 
 let type_of (env: stc_env) (e: expr): ty_scheme option =
@@ -134,26 +139,26 @@ let type_of (env: stc_env) (e: expr): ty_scheme option =
              let a = fresh_var() in
              Some (a, (t1, TFun (t2, a)) :: c1 @ c2)
          | _ -> None)
-    | Let {is_rec; name; value; body} ->
-      if is_rec then
-        let a = fresh_var() in
-        let b = fresh_var() in
-        let env' = Env.add name (Forall ([], TFun (a, b))) env in
-        (match go env' value with
-         | Some (t1, c1) ->
-             let env'' = Env.add name (Forall ([], t1)) env in
-             (match go env'' body with
-              | Some (t2, c2) -> Some (t2, (t1, TFun (a, b)) :: c1 @ c2)
-              | None -> None)
-         | None -> None)
-      else
-        (match go env value with
-         | Some (t1, c1) ->
-             let env' = Env.add name (Forall ([], t1)) env in
-             (match go env' body with
-              | Some (t2, c2) -> Some (t2, c1 @ c2)
-              | None -> None)
-         | None -> None)
+    | Let {is_rec = false; name; value; body} ->
+      (match go env value with
+       | Some (t1, c1) ->
+           (match unify t1 c1 with
+            | Some scheme ->
+                let env' = Env.add name scheme env in
+                go env' body
+            | None -> None)
+       | None -> None)
+    | Let {is_rec = true; name; value; body} ->
+      let a = fresh_var() in
+      let env' = Env.add name (Forall ([], a)) env in
+      (match go env' value with
+       | Some (t1, c1) ->
+           (match unify t1 ((a, t1) :: c1) with
+            | Some scheme ->
+                let env'' = Env.add name scheme env in
+                go env'' body
+            | None -> None)
+       | None -> None)
     | Assert e' ->
         (match go env e' with
          | Some (t, c) -> Some (TUnit, (t, TBool) :: c)
@@ -190,9 +195,12 @@ let type_of (env: stc_env) (e: expr): ty_scheme option =
               | None -> None)
          | None -> None)
     | Annot (e', t) ->
-        (match go env e' with
-         | Some (t', c) -> Some (t, (t', t) :: c)
-         | None -> None)
+      (match go env e' with
+       | Some (t', c) -> 
+           (match unify t' ((t', t) :: c) with
+            | Some _ -> Some (t, [])
+            | None -> None)
+       | None -> None)
   in
   match go env e with
   | Some (t, c) -> unify t c
