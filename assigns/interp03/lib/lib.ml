@@ -25,14 +25,6 @@ let rec free_type_vars (t: ty): ident list =
       let fv2 = free_type_vars t2 in
       unique (List.sort compare (fv1 @ fv2))
 
-let generalize (env: stc_env) (ty: ty): ty_scheme =
-  let env_list = Env.to_list env in
-  let env_vars = List.fold_left (fun acc (_, Forall(vars, _)) ->
-    VarSet.union acc (VarSet.of_list vars)
-  ) VarSet.empty env_list in
-  let free_vars = List.filter (fun v -> not (VarSet.mem v env_vars)) (free_type_vars ty) in
-  Forall (free_vars, ty)
-
 let unify (ty: ty) (constrs: constr list): ty_scheme option =
   let rec unify_one (t1: ty) (t2: ty): (ident * ty) list option =
     match t1, t2 with
@@ -40,8 +32,10 @@ let unify (ty: ty) (constrs: constr list): ty_scheme option =
     | TVar x, TVar y when x = y -> Some []
     | TVar x, t when not (occurs x t) -> Some [(x, t)]
     | t, TVar x when not (occurs x t) -> Some [(x, t)]
-    | TList t1, TList t2 | TOption t1, TOption t2 -> unify_one t1 t2
-    | TPair (t1a, t1b), TPair (t2a, t2b) | TFun (t1a, t1b), TFun (t2a, t2b) ->
+    | TList t1, TList t2
+    | TOption t1, TOption t2 -> unify_one t1 t2
+    | TPair (t1a, t1b), TPair (t2a, t2b)
+    | TFun (t1a, t1b), TFun (t2a, t2b) ->
         (match unify_one t1a t2a, unify_one t1b t2b with
          | Some c1, Some c2 -> Some (c1 @ c2)
          | _ -> None)
@@ -65,10 +59,10 @@ let unify (ty: ty) (constrs: constr list): ty_scheme option =
         | Some new_subst ->
             let updated_rest = apply_subst_constrs new_subst rest in
             (match unify_all updated_rest with
-             | Some rest_subst -> 
-                 Some (new_subst @ rest_subst)
+             | Some rest_subst -> Some (new_subst @ rest_subst)
              | None -> None)
         | None -> None
+
   in
   match unify_all constrs with
   | Some subst ->
@@ -104,26 +98,26 @@ let type_of (env: stc_env) (e: expr): ty_scheme option =
          | Some (t, c) -> Some (TOption t, c)
          | None -> None)
     | Bop (op, e1, e2) ->
-      (match go env e1, go env e2 with
-       | Some (t1, c1), Some (t2, c2) ->
-           (match op with
-            | Add | Sub | Mul | Div | Mod -> 
-                Some (TInt, (t1, TInt) :: (t2, TInt) :: (t1, t2) :: c1 @ c2)
-            | AddF | SubF | MulF | DivF | PowF -> 
-                Some (TFloat, (t1, TFloat) :: (t2, TFloat) :: (t1, t2) :: c1 @ c2)
-            | Lt | Lte | Gt | Gte | Eq | Neq -> 
-                Some (TBool, (t1, t2) :: c1 @ c2)
-            | And | Or -> 
-                Some (TBool, (t1, TBool) :: (t2, TBool) :: (t1, t2) :: c1 @ c2)
-            | Cons -> 
-                let a = fresh_var() in
-                Some (TList a, (t1, a) :: (t2, TList a) :: c1 @ c2)
-            | Concat -> 
-                let a = fresh_var() in
-                Some (TList a, (t1, TList a) :: (t2, TList a) :: c1 @ c2)
-            | Comma -> 
-                Some (TPair (t1, t2), c1 @ c2))
-       | _ -> None)
+        (match go env e1, go env e2 with
+         | Some (t1, c1), Some (t2, c2) ->
+             (match op with
+              | Add | Sub | Mul | Div | Mod -> 
+                  Some (TInt, (t1, TInt) :: (t2, TInt) :: c1 @ c2)
+              | AddF | SubF | MulF | DivF | PowF -> 
+                  Some (TFloat, (t1, TFloat) :: (t2, TFloat) :: c1 @ c2)
+              | Lt | Lte | Gt | Gte | Eq | Neq -> 
+                  Some (TBool, (t1, t2) :: c1 @ c2)
+              | And | Or -> 
+                  Some (TBool, (t1, TBool) :: (t2, TBool) :: c1 @ c2)
+              | Cons -> 
+                  let a = fresh_var() in
+                  Some (TList a, (t1, a) :: (t2, TList a) :: c1 @ c2)
+              | Concat -> 
+                  let a = fresh_var() in
+                  Some (TList a, (t1, TList a) :: (t2, TList a) :: c1 @ c2)
+              | Comma -> 
+                  Some (TPair (t1, t2), c1 @ c2))
+         | _ -> None)
     | If (e1, e2, e3) ->
         (match go env e1, go env e2, go env e3 with
          | Some (t1, c1), Some (t2, c2), Some (t3, c3) ->
@@ -154,16 +148,12 @@ let type_of (env: stc_env) (e: expr): ty_scheme option =
          | None -> None)
       else
         (match go env value with
-        | Some (t1, c1) ->
-            (match unify t1 c1 with
-             | Some (Forall (_, t1')) ->
-                 let gen_t1 = generalize env t1' in
-                 let env' = Env.add name gen_t1 env in
-                 (match go env' body with
-                  | Some (t2, c2) -> Some (t2, c1 @ c2)
-                  | None -> None)
-             | None -> None)
-        | None -> None)
+         | Some (t1, c1) ->
+             let env' = Env.add name (Forall ([], t1)) env in
+             (match go env' body with
+              | Some (t2, c2) -> Some (t2, c1 @ c2)
+              | None -> None)
+         | None -> None)
     | Assert e' ->
       (match e' with
       | False -> 
