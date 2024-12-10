@@ -26,18 +26,15 @@ let rec free_type_vars (t: ty): ident list =
       unique (List.sort compare (fv1 @ fv2))
 
 let unify (ty: ty) (constrs: constr list): ty_scheme option =
-  let rec unify_one (t1: ty) (t2: ty): constr list option =
+  let rec unify_one (t1: ty) (t2: ty): (ident * ty) list option =
     match t1, t2 with
     | TUnit, TUnit | TInt, TInt | TFloat, TFloat | TBool, TBool -> Some []
     | TVar x, TVar y when x = y -> Some []
-    | TVar x, t when not (occurs x t) -> Some [(TVar x, t)]
-    | t, TVar x when not (occurs x t) -> Some [(TVar x, t)]
-    | TList t1, TList t2 -> unify_one t1 t2
+    | TVar x, t when not (occurs x t) -> Some [(x, t)]
+    | t, TVar x when not (occurs x t) -> Some [(x, t)]
+    | TList t1, TList t2
     | TOption t1, TOption t2 -> unify_one t1 t2
-    | TPair (t1a, t1b), TPair (t2a, t2b) ->
-        (match unify_one t1a t2a, unify_one t1b t2b with
-         | Some c1, Some c2 -> Some (c1 @ c2)
-         | _ -> None)
+    | TPair (t1a, t1b), TPair (t2a, t2b)
     | TFun (t1a, t1b), TFun (t2a, t2b) ->
         (match unify_one t1a t2a, unify_one t1b t2b with
          | Some c1, Some c2 -> Some (c1 @ c2)
@@ -51,32 +48,29 @@ let unify (ty: ty) (constrs: constr list): ty_scheme option =
     | TPair (t1, t2) | TFun (t1, t2) -> occurs x t1 || occurs x t2
     | _ -> false
 
-  and unify_all (constrs: constr list): (ident * ty) list option =
+  and apply_subst_constrs subst constrs =
+    List.map (fun (t1, t2) -> (apply_subst_ty subst t1, apply_subst_ty subst t2)) constrs
+
+  and unify_all constrs =
     match constrs with
     | [] -> Some []
     | (t1, t2) :: rest ->
         match unify_one t1 t2 with
-        | Some new_constrs ->
-            (match unify_all rest with
-             | Some subst -> 
-                 let combined_subst = 
-                   List.map (fun (t1, t2) -> 
-                     match t1 with
-                     | TVar x -> (x, t2)
-                     | _ -> failwith "Invalid constraint in unification"
-                   ) new_constrs @ subst
-                 in
-                 Some (List.map (fun (x, t) -> (x, apply_subst_ty combined_subst t)) combined_subst)
+        | Some new_subst ->
+            let updated_rest = apply_subst_constrs new_subst rest in
+            (match unify_all updated_rest with
+             | Some rest_subst -> Some (new_subst @ rest_subst)
              | None -> None)
         | None -> None
 
   in
   match unify_all constrs with
-  | Some subst -> 
+  | Some subst ->
       let final_ty = apply_subst_ty subst ty in
       let free_vars = free_type_vars final_ty in
       Some (Forall (free_vars, final_ty))
   | None -> None
+
 
 let type_of (env: stc_env) (e: expr): ty_scheme option =
   let fresh_var () = TVar (gensym()) in
@@ -303,6 +297,7 @@ let rec eval_expr (env: dyn_env) (e: expr): value =
 
 and compare_values v1 v2 =
   match v1, v2 with
+  | VUnit, VUnit -> 0
   | VClos _, _ | _, VClos _ -> raise CompareFunVals
   | VInt n1, VInt n2 -> compare n1 n2
   | VFloat f1, VFloat f2 -> compare f1 f2
